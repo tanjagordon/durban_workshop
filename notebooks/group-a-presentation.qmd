@@ -1,0 +1,236 @@
+---
+title: "Group A Yogurt — Data Summary"
+subtitle: "Effects of yogurt on the vaginal microbiome during antibiotics"
+author: "Workshop Group A"
+format: 
+  revealjs:
+    theme: dark
+    transition: slide
+    slide-number: true
+    preview-links: auto
+execute:
+  warning: false
+  message: false
+editor: source
+---
+
+## The Study Design
+
+- **Question:** Does eating yogurt during antibiotic treatment affect the vaginal microbiome?
+- **Participants:** 51 women
+- **Two diet groups:**
+  - 🥛 **Yogurt group** — 26 women
+  - 🚫 **Unchanged diet group** — 25 women
+- **Two time points:** Baseline → then after antibiotics
+- **Measurements:** Demographics, bacterial DNA (qPCR), immune markers (Luminex)
+
+---
+
+## The Data Files
+
+| File | What's inside |
+|---|---|
+| `00_sample_ids_yogurt.csv` | Links each sample to a participant, time point & diet group |
+| `01_participant_metadata_yogurt.csv` | Age, birth control, education, etc. |
+| `02_qpcr_results_yogurt.csv` | Bacterial DNA levels (total, L. crispatus, L. iners) |
+| `03_luminex_results_yogurt.csv` | 10 immune markers (cytokines) per sample |
+
+---
+
+## Step 1: Table 1 — Participant Characteristics
+
+We compared demographics between the yogurt and unchanged diet groups.
+
+| Characteristic | Unchanged Diet (N=25) | Yogurt (N=26) | p-value |
+|---|---|---|---|
+| Days since last sex | 6 (3, 10) | 5 (3, 11) | 0.8 |
+| **Birth control** 🚨 | | | **0.017*** |
+| &nbsp;&nbsp;Depoprovera | 8 (32%) | **17 (65%)** | |
+| &nbsp;&nbsp;No hormonal BC | 17 (68%) | 9 (35%) | |
+| Age | 30.4 (3.3) | 31.0 (3.3) | 0.6 |
+| Education | — | — | 0.8 |
+
+---
+
+## Table 1 — Key Finding
+
+**Birth control is unbalanced!** 🚨
+
+- The yogurt group has **65% Depoprovera users**
+- The unchanged diet group has only **32% Depoprovera users**
+- This difference is statistically significant (p = 0.017)
+
+This means birth control could be a **confounder** — any difference we see between diet groups might actually be due to birth control differences, not yogurt.
+
+---
+
+## Step 2: Boxplot — Age by Birth Control
+
+```{r boxplot_again, echo=FALSE}
+library(tidyverse)
+library(here)
+library(ggpubr)
+
+participants <- read_csv(here::here("data/group_a_yogurt/01_participant_metadata_yogurt.csv"))
+
+ggplot(participants, aes(x = birth_control, y = age)) +
+  geom_boxplot(aes(fill = arm)) +
+  facet_wrap(~ arm) +
+  ggpubr::stat_compare_means(method = "wilcox.test", label = "p.signif") +
+  labs(
+    title = "Age by Birth Control and Diet Group",
+    x = "Birth Control",
+    y = "Age (years)",
+    fill = "Diet Group"
+  ) +
+  theme_minimal()
+```
+
+---
+
+## Age by Birth Control — Interpretation
+
+| Group | Depoprovera (avg) | No hormonal BC (avg) | p-value |
+|---|---|---|---|
+| **Unchanged diet** | 32.6 years | 29.4 years | **0.022*** |
+| **Yogurt** | 32.0 years | 29.1 years | 0.061 (ns) |
+
+**What this means:**
+
+- In both groups, Depoprovera users are **~3 years older** on average
+- This is significant in the unchanged diet group (\*)
+- Since birth control is unbalanced between arms, **age differences could be driving some of our results**
+
+---
+
+## Step 3: Boxplot — Total Bacteria (qPCR)
+
+```{r qpcr_boxplot_again, echo=FALSE}
+sample_ids <- read_csv(here::here("data/group_a_yogurt/00_sample_ids_yogurt.csv"))
+qpcr <- read_csv(here::here("data/group_a_yogurt/02_qpcr_results_yogurt.csv"))
+
+qpcr_joined <- qpcr |>
+  left_join(sample_ids, by = "sample_id") |>
+  left_join(participants, by = c("pid", "arm"))
+
+ggplot(qpcr_joined, aes(x = birth_control, y = qpcr_bacteria)) +
+  geom_boxplot(aes(fill = arm)) +
+  facet_wrap(~ arm) +
+  ggpubr::stat_compare_means(method = "wilcox.test", label = "p.signif") +
+  scale_y_log10() +
+  labs(
+    title = "Total Bacteria by Birth Control and Diet Group",
+    x = "Birth Control",
+    y = "Total Bacteria (log scale)",
+    fill = "Diet Group"
+  ) +
+  theme_minimal()
+```
+
+---
+
+## Total Bacteria — Interpretation
+
+| Group | Depoprovera (median) | No hormonal BC (median) | p-value |
+|---|---|---|---|
+| **Unchanged diet** | 4.8 million | 1.5 million | 0.084 (ns) |
+| **Yogurt** | 2.0 million | 2.9 million | 0.736 (ns) |
+
+**Takeaways:**
+
+- In the unchanged diet group, Depoprovera users have **3× more bacteria** — but not significant (p = 0.084)
+- In the yogurt group, bacteria levels are similar regardless of birth control
+- **Suggestion:** Could yogurt be "smoothing out" differences caused by birth control?
+
+---
+
+## Step 4: Boxplot — IL-8 (Inflammation)
+
+```{r luminex_boxplot_again, echo=FALSE}
+luminex <- read_csv(here::here("data/group_a_yogurt/03_luminex_results_yogurt.csv"))
+
+luminex_joined <- luminex |>
+  left_join(sample_ids, by = "sample_id") |>
+  left_join(participants, by = c("pid", "arm"))
+
+luminex_joined |>
+  filter(cytokine == "IL-8") |>
+  ggplot(aes(x = birth_control, y = conc)) +
+  geom_boxplot(aes(fill = arm)) +
+  facet_wrap(~ arm) +
+  ggpubr::stat_compare_means(method = "wilcox.test", label = "p.signif") +
+  labs(
+    title = "IL-8 Levels by Birth Control and Diet Group",
+    x = "Birth Control",
+    y = "IL-8 Concentration",
+    fill = "Diet Group"
+  ) +
+  theme_minimal()
+```
+
+---
+
+## IL-8 — Interpretation
+
+| Group | Depoprovera (median) | No hormonal BC (median) | p-value |
+|---|---|---|---|
+| **Unchanged diet** | 52.5 | 17.1 | 0.094 (ns) |
+| **Yogurt** | 25.3 | 30.7 | 0.544 (ns) |
+
+**What this means:**
+
+- IL-8 is an **inflammation signal** — higher values can mean more inflammation
+- In the unchanged diet group, Depoprovera users have **3× higher IL-8** (trend, not significant)
+- In the yogurt group, IL-8 is similar regardless of birth control
+
+---
+
+## Summary of Findings
+
+### 🎯 What we discovered
+
+1. **Birth control is unbalanced** between diet groups — more Depoprovera users in the yogurt group (p = 0.017)
+
+2. **Depoprovera users tend to be older** — by about 3 years on average
+
+3. **Depoprovera users (in the unchanged diet group) show hints of:**
+   - More total bacteria (ns)
+   - Higher IL-8 inflammation signal (ns)
+
+4. **In the yogurt group**, these differences seem smaller — birth control groups look more similar
+
+---
+
+## Key Takeaway
+
+### 🧐 Why this matters
+
+When comparing yogurt vs unchanged diet, we need to be careful:
+
+> "Are we seeing an effect of **yogurt**, or are we seeing an effect of **birth control** (which happens to be unbalanced between groups)?"
+
+### 💡 Next steps
+
+- Compare only **Depoprovera users** across both arms
+- Compare only **no-hormonal-BC users** across both arms
+- Or use a statistical model that **adjusts for birth control**
+
+---
+
+## What We Used
+
+**R Packages:**
+| Package | Purpose |
+|---|---|
+| `tidyverse` | Data wrangling & ggplot2 plots |
+| `gtsummary` | Beautiful Table 1 with p-values |
+| `ggpubr` | Adding p-values to plots |
+| `here` | File paths |
+
+**Statistical tests:** Wilcoxon rank-sum test (non-parametric, safe for small groups)
+
+---
+
+# Thank you! 🥛📊
+
+Questions? Time to explore more cytokines or bacteria!

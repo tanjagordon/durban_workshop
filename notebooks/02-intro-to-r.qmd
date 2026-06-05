@@ -23,20 +23,38 @@ library(here)
 
 ## Part 1 — Run a chunk, write a sentence, render
 
+
 ```{r}
-# your code here
+# 3 + 5 + 10 
+10 * (5 + 1)
+2 ** 10
+64 / 2 + 2
+64 / (2 + 2) 
 ```
+the brackets helped to separate the equation 
+the above code is a summary of multiplication and addition, 2**10 means 2 to the power of 10
+
+
 
 ## Part 2 — Read the data and look at it
 
 ```{r}
-# your code here
+table_02 <- read_csv(here("data/instructional_dataset/02_visit_clinical_measurements_UKZN_workshop_2023.csv"))
+
+table_02
+#table_02 has 10 columns and 6 rows, of the variables, nugent_score looks the most interesting because I'm unsure what it means
+glimpse(table_02)
 ```
 
 ## Part 3 — Pull out columns and summarise them
 
 ```{r}
-# your code here
+table_02$nugent_score
+mean(table_02$crp_blood, na.rm = TRUE) #na.rm = TRUE: skip missing numbers
+mean(table_02$crp_blood) #the numbers stayed the same
+crp_mean <- mean(table_02$crp_blood, na.rm = TRUE)
+crp_mean
+#crp_mean is the mean value of the column crp_blood and "na.rm = TURE" ensures that missing values are not counted
 ```
 
 ## Part 4 — Build something with Pi
@@ -51,8 +69,4 @@ library(here)
 # your code here
 ```
 
-## Before you go
-
-Pick one step today that confused you. Ask Pi to explain it, then push back:
-*"why did you use X instead of Y?"* Notice when Pi sounds confident versus when
-it is guessing.
+## Before you go 

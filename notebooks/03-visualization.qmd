@@ -29,6 +29,7 @@ ggplot(table_02, aes(x = ph, y = nugent_score, color = arm)) +
 **Plot 1 (above). Answer in plain words:**
 
 1. What is the mark?
+
 2. What mark property comes from what column?
 3. How many rows of data made each mark?
 
@@ -36,8 +37,8 @@ ggplot(table_02, aes(x = ph, y = nugent_score, color = arm)) +
 #| echo: false
 #| fig-width: 6
 #| fig-height: 4
-ggplot(table_02, aes(x = arm, y = ph, fill = arm)) +
-  geom_boxplot()
+ggplot(table_02, aes(x = arm, y = ph)) + 
+  geom_boxplot(fill = "navyblue")
 ```
 
 **Plot 2 (above). Answer the same three questions.**
@@ -51,31 +52,31 @@ ggplot(table_02, aes(x = arm, y = ph, fill = arm)) +
 Each step adds one piece on top of the previous plot. Run after each.
 
 ```{r}
-# step 1: ggplot(table_02, aes(x = ph, y = nugent_score)) + geom_point()
+ggplot(table_02, aes(x = ph, y=nugent_score)) + geom_point()
 ```
 
 ```{r}
-# step 2: swap geom_point() for geom_jitter()
+ggplot(table_02, aes(x = ph, y=nugent_score)) + geom_jitter()
 ```
 
 ```{r}
-# step 3: add aes(color = arm)
+ggplot(table_02, aes(x = ph, y=nugent_score, color = arm)) + geom_jitter()
 ```
 
 ```{r}
-# step 4: switch to a boxplot of ph by arm: aes(x = arm, y = ph) + geom_boxplot()
+ggplot(table_02, aes(x =arm, y = ph)) + geom_boxplot()
 ```
 
 ```{r}
-# step 5a: aes(fill = arm) — mapping
+ggplot(table_02, aes(x =arm, y = ph, fill = arm)) + geom_boxplot()
 ```
 
 ```{r}
-# step 5b: fill = "navyblue" outside aes() — parameter
+ggplot(table_02, aes(x =arm, y = ph)) + geom_boxplot(fill = "navyblue")
 ```
 
 ```{r}
-# step 6: add labs(x = "Treatment arm", y = "Vaginal pH", fill = "Arm")
+ggplot(table_02, aes(x = arm, y = ph)) + labs(x = "Treatment arm", y = "Vaginal pH", fill = "Arm") + geom_boxplot(fill = "navyblue")
 ```
 
 ```{r}

@@ -1,0 +1,168 @@
+---
+title: "Group A — Yogurt Dataset: Data Dictionary"
+author: "Workshop Participant"
+format:
+  html:
+    toc: true
+    code-fold: true
+    embed-resources: true
+---
+
+## Overview
+
+This document describes every CSV file in the `data/group_a_yogurt/` folder —
+what a single row represents, and what each column means.
+
+We'll use **R** with the **tidyverse** (a collection of friendly R packages for
+data science) to read and peek at each file.
+
+```{r setup}
+# Load the tidyverse — this gives us read_csv(), glimpse(), and many other tools
+library(tidyverse)
+```
+
+---
+
+## File 1: `00_sample_ids_yogurt.csv`
+
+**What a row represents:** one biological sample collected from a study
+participant at a specific time point. Each participant provided two samples:
+one at *baseline* (before antibiotics) and one *after antibiotics*.
+
+```{r file1}
+sample_ids <- read_csv("../data/group_a_yogurt/00_sample_ids_yogurt.csv")
+
+# Show the first few rows and the structure
+#head(sample_ids)
+#glimpse(sample_ids)
+```
+
+### Columns
+
+| Column | Type | Meaning |
+|--------|------|---------|
+| `pid` | character | **Participant ID** — a unique code for each person in the study (e.g. `pid_25`). The same `pid` appears twice (baseline + after antibiotic). |
+| `time_point` | character | **When the sample was taken** — either `"baseline"` (before the antibiotic course) or `"after_antibiotic"` (after the antibiotic course). |
+| `arm` | character | **Study group** — which diet the participant was assigned to: `"yogurt"` (ate yogurt daily) or `"unchanged_diet"` (control group, no yogurt). |
+| `sample_id` | character | **Unique sample identifier** — a code like `UNCH001` (unchanged diet) or `YOG002` (yogurt group). This is the key used to connect to the other tables. |
+
+---
+
+## File 2: `01_participant_metadata_yogurt.csv`
+
+**What a row represents:** one study participant, with their background
+information (demographics and health-related data).
+
+```{r file2}
+participant_metadata <- read_csv("../data/group_a_yogurt/01_participant_metadata_yogurt.csv")
+
+head(participant_metadata)
+glimpse(participant_metadata)
+```
+
+### Columns
+
+| Column | Type | Meaning |
+|--------|------|---------|
+| `pid` | character | **Participant ID** — matches the `pid` in the sample IDs file. |
+| `arm` | character | **Study group** — `"yogurt"` or `"unchanged_diet"`. |
+| `days_since_last_sex` | double | **Days since last sexual activity** — a self-reported number. Larger numbers mean longer since last sex. |
+| `birth_control` | character | **Hormonal birth control use** — either `"no hormonal birth control"` or `"Depoprovera"` (a type of injectable hormonal contraception). |
+| `age` | double | **Age** of the participant in years. |
+| `education` | character | **Highest education level** — categories like `"less than grade 9"`, `"grade 10-12, not matriculated"`, `"grade 10-12, matriculated"`, or `"post-secondary"`. |
+| `sex` | character | **Sex of participant** — all participants are `"female"`. |
+
+---
+
+## File 3: `02_qpcr_results_yogurt.csv`
+
+**What a row represents:** the bacterial DNA measurements (via qPCR — a lab
+technique that counts how many copies of a gene are present) for one sample.
+It tells us how much total bacteria and two specific *Lactobacillus* species
+are present.
+
+```{r file3}
+qpcr <- read_csv("../data/group_a_yogurt/02_qpcr_results_yogurt.csv")
+
+head(qpcr)
+glimpse(qpcr)
+```
+
+### Columns
+
+| Column | Type | Meaning |
+|--------|------|---------|
+| `sample_id` | character | **Sample ID** — links to the `sample_id` in `00_sample_ids_yogurt.csv`. |
+| `qpcr_bacteria` | double | **Total bacteria** — the number of 16S rRNA gene copies detected (a standard way to measure all bacteria). Larger number = more bacteria overall. The 16S rRNA gene is a gene found in all bacteria, so it's used as a proxy for total bacterial load. |
+| `qpcr_crispatus` | double | ***Lactobacillus crispatus* count** — how many copies of a gene specific to *L. crispatus* were found. This species is generally considered beneficial for vaginal health. |
+| `qpcr_iners` | double | ***Lactobacillus iners* count** — how many copies of a gene specific to *L. iners* were found. *L. iners* is another common vaginal *Lactobacillus*, but it's less protective than *L. crispatus*. |
+
+---
+
+## File 4: `03_luminex_results_yogurt.csv`
+
+**What a row represents:** the concentration of **one cytokine** (a type of
+immune-signalling protein) measured in one sample. Because there are 10
+cytokines per sample, each sample appears **10 times** in this table (once per
+cytokine). This is called **long format** data.
+
+```{r file4}
+luminex <- read_csv("../data/group_a_yogurt/03_luminex_results_yogurt.csv")
+
+head(luminex)
+glimpse(luminex)
+```
+
+### Columns
+
+| Column | Type | Meaning |
+|--------|------|---------|
+| `sample_id` | character | **Sample ID** — links to the `sample_id` in `00_sample_ids_yogurt.csv`. |
+| `cytokine` | character | **Which cytokine was measured** — one of 10 immune-signalling proteins: `IL-1a`, `IL-1b`, `IL-6`, `IL-8`, `IL-10`, `TNFa`, `IFN-Y`, `IP-10`, `MIG`, `MIP-3a`. Each plays a different role in inflammation and immune response. |
+| `conc` | double | **Concentration** — how much of that cytokine was detected in the sample (in pg/mL). Higher values usually mean more inflammation. |
+| `limits` | character | **Whether the concentration was measurable** — `"within limits"` means the value is reliable. `"out of range"` means it was too low (below detection limit) or too high (above the standard curve) to measure accurately. |
+
+---
+
+## Putting it all together
+
+The four files are designed to be **joined** using `sample_id` (files 1, 3, 4)
+and `pid` (files 1, 2). Here's a quick look at how they connect:
+
+```{r join-preview}
+# Join sample info with qPCR results
+sample_ids %>%
+  inner_join(qpcr, by = "sample_id") %>%
+  head(10)
+```
+
+```{r join-all}
+# A full join: samples + participant metadata + qPCR + a couple of cytokines
+sample_ids %>%
+  inner_join(participant_metadata, by = "pid") %>%
+  inner_join(qpcr, by = "sample_id") %>%
+  inner_join(
+    luminex %>% filter(cytokine %in% c("IL-8", "IP-10")), #combine and concentrate
+    by = "sample_id"
+  ) %>%
+  head(10)
+```
+
+```{r}
+ # Load the data first                                                            
+   sample_ids <- read_csv("data/group_a_yogurt/00_sample_ids_yogurt.csv")        
+   qpcr <- read_csv("data/group_a_yogurt/02_qpcr_results_yogurt.csv")            
+   luminex <- read_csv("data/group_a_yogurt/03_luminex_results_yogurt.csv")      
+                                                                                    getwd()
+   # Now verify                                                                     
+   sample_ids %>%                                                                   
+     summarise(across(everything(), ~ sum(is.na(.)))) 
+```
+
+```{r}                                                                             
+   file.edit("group_project/data_dictionary.qmd")                                   
+ ``` 
+
+
+
+

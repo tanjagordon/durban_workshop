@@ -22,16 +22,23 @@ table_02 <- read_csv(here("data/instructional_dataset/02_visit_clinical_measurem
 For each pipeline below, write in plain words *how many rows* the result has and *what one row represents*. Don't run any code yet.
 
 ```{r}
-table_02
+per_person <-table_02|> 
+group_by(pid) |> 
+summarise(mean_ph = mean(ph))
+table_02 |>
+group_by(arm, time_point) |>
+summarise(mean_ph = mean(ph))
+table_01 |> head()
+per_person |> left_join(table_01, by = "pid")
 ```
 
 **1. After `table_02 |> group_by(pid) |> summarise(mean_ph = mean(ph))`:**
 
-*Your answer:*
+*Your answer: each row represents the mean of each individuals pH level (34 rows)
 
 **2. After `table_02 |> group_by(arm, time_point) |> summarise(mean_ph = mean(ph))`:**
 
-*Your answer:*
+*Your answer:6 rows, each row represents the mean pH level per arm and time point
 
 **3. After `per_person |> left_join(table_01, by = "pid")`, where `per_person` is the 44-row result from prediction 1:**
 
@@ -44,14 +51,11 @@ table_02
 ## Part 2 — Build the pipeline
 
 ```{r}
-# step 1: pipe table_02 into head() to see the starting shape
+
 ```
 
 ```{r}
-# step 2: group_by(pid) |> summarise(mean_ph = mean(ph), mean_nugent = mean(nugent_score))
-# assign it to per_person so step 3 can use it
-per_person <- NULL  # replace NULL with the pipeline
-per_person
+
 ```
 
 ```{r}

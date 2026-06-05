@@ -1,0 +1,170 @@
+---
+title: "R Workshop — What I've Learned So Far"
+author: "Me!"
+format:
+  html:
+    toc: true
+    code-fold: true
+    embed-resources: true
+---
+
+## 1. Reading data with `read_csv()`
+
+`read_csv()` reads a `.csv` file into R as a **data frame** (like a spreadsheet):
+
+```{r}
+library(tidyverse)
+
+sample_ids <- read_csv("../data/group_a_yogurt/00_sample_ids_yogurt.csv")
+```
+
+---
+
+## 2. The pipe `%>%` (pronounced "and then")
+
+The pipe takes whatever is on the **left** and feeds it into the function on the **right** as the first argument. You read it like steps in a recipe:
+
+```{r}
+# Without pipe — inside-out, hard to read
+head(arrange(filter(sample_ids, arm == "yogurt"), pid))
+
+# With pipe — left to right, like a recipe
+sample_ids %>%
+  filter(arm == "yogurt") %>%
+  arrange(pid) %>%
+  head()
+```
+
+There's also the native pipe `|>` (built into base R), but `%>%` (from the magrittr package) is what the tidyverse uses. They do the same job.
+
+---
+
+## 3. `c()` — combine values
+
+`c()` makes a collection of values:
+
+```{r}
+# A vector of numbers
+c(1, 5, 10, 3)
+
+# A vector of text
+c("yogurt", "unchanged_diet")
+
+# Using it in filter
+sample_ids %>%
+  filter(pid %in% c("pid_01", "pid_02", "pid_03"))
+```
+
+---
+
+## 4. `head()` and `tail()` — peek at data
+
+- `head()` shows the **first** 6 rows (or however many you tell it)
+- `tail()` shows the **last** rows
+
+```{r}
+head(sample_ids)       # first 6 rows
+head(sample_ids, 3)    # first 3 rows
+```
+
+---
+
+## 5. `glimpse()` — see the structure
+
+`glimpse()` shows each column, its data type, and a preview of values:
+
+```{r}
+glimpse(sample_ids)
+```
+
+---
+
+## 6. Quarto code chunks
+
+In a `.qmd` file, you write R code inside chunks like this:
+
+<code>
+```{r}
+# Your code here
+```
+</code>
+
+And the setting `code-fold: true` in the YAML header adds a **"Code" button** at the top of the HTML page — click it to show or hide all the code.
+
+---
+
+## 7. Joining tables
+
+`inner_join()` combines two tables using a **key column**:
+
+```{r}
+# Join sample info with qPCR results
+sample_ids %>%
+  inner_join(read_csv("../data/group_a_yogurt/02_qpcr_results_yogurt.csv"), by = "sample_id") %>%
+  head()
+```
+
+An inner join keeps only rows that exist in **both** tables.
+
+---
+
+## 8. Verifying data
+
+Some ways to check your data makes sense:
+
+**Check for missing values:**
+```{r}
+sample_ids %>%
+  summarise(across(everything(), ~ sum(is.na(.))))
+```
+
+**Summary statistics (min, max, average):**
+```{r}
+read_csv("../data/group_a_yogurt/02_qpcr_results_yogurt.csv") %>%
+  summary()
+```
+
+**Count how many in each group:**
+```{r}
+sample_ids %>%
+  count(arm)
+```
+
+**Check all IDs link up between tables:**
+```{r}
+anti_join(
+  read_csv("../data/group_a_yogurt/02_qpcr_results_yogurt.csv"),
+  sample_ids,
+  by = "sample_id"
+)
+# Should be 0 rows — if not, something doesn't match
+```
+
+---
+
+## 9. Key vocabulary
+
+| Term | Meaning |
+|------|---------|
+| **Data frame** | A table of data, like a spreadsheet |
+| **Vector** | A collection of values (all the same type) |
+| **Column** | A variable or field in the data |
+| **Row** | One observation / data point |
+| **Key** | A column used to link two tables together |
+| **Pipe** | `%>%` — feeds data into the next step |
+| **Tidyverse** | A collection of R packages for data science |
+
+---
+
+## 10. The yogurt dataset (Group A)
+
+We have **4 CSV files**:
+
+| File | One row = | Key column |
+|------|-----------|------------|
+| `00_sample_ids_yogurt.csv` | One biological sample | `sample_id` |
+| `01_participant_metadata_yogurt.csv` | One participant | `pid` |
+| `02_qpcr_results_yogurt.csv` | Bacterial DNA counts for one sample | `sample_id` |
+| `03_luminex_results_yogurt.csv` | One cytokine measurement (10 rows per sample) | `sample_id` |
+
+Study design: participants were split into **yogurt** and **unchanged diet** groups. Each person gave a sample at **baseline** and **after antibiotics**.

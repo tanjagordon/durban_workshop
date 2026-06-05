@@ -1,0 +1,303 @@
+---
+title: "Group A Yogurt — Results"
+format: html
+editor: source
+execute:
+  warning: false
+  message: false
+---
+
+```{r setup}
+library(tidyverse)
+library(gtsummary)
+library(here)
+library(ggpubr)
+```
+
+```{r}
+# Load the Group A Yogurt participant data
+participants <- read_csv(here::here("data/group_a_yogurt/01_participant_metadata_yogurt.csv"))
+```
+
+```{r table1}
+# Build Table 1 — descriptive stats by arm (yogurt vs unchanged diet)
+participants |>
+  select(-pid, -sex) |>                      # drop ID and sex (all female)
+  tbl_summary(
+    by = arm,                                 # split table by diet group
+    statistic = list(age ~ "{mean} ({sd})")   # show age as mean (SD)
+  ) |>
+  add_p() |>                                  # add p-values
+  add_overall() |>                            # add an overall column
+  bold_labels() |>                            # bold variable names
+  modify_header(label ~ "**Characteristic**") # nicer column name
+```
+
+```{r boxplot}
+# Boxplot: age by birth control type, faceted by diet arm
+# facet_wrap(~ arm) splits into separate panels for yogurt vs unchanged diet
+# stat_compare_means() adds a p-value (stars) on each panel
+
+ggplot(participants, aes(x = birth_control, y = age)) +
+  geom_boxplot(aes(fill = arm)) +
+  facet_wrap(~ arm) +                        # one panel per diet group
+ ggpubr::stat_compare_means(                         # add p-value stars
+    method = "wilcox.test",
+    label = "p.signif"
+  ) +
+  labs(
+    title = "Age by Birth Control and Diet Group",
+    x = "Birth Control",
+    y = "Age (years)",
+    fill = "Diet Group"
+  ) +
+  theme_minimal()
+```
+
+---
+
+## Bonus: Using qPCR or Luminex data in boxplots
+
+### 🧬 qPCR data — `02_qpcr_results_yogurt.csv`
+
+qPCR measures **bacterial DNA** levels in each sample. It's already in **wide format**
+(one row per sample, each column is a continuous number).
+
+| Column | What it measures |
+|---|---|
+| `qpcr_bacteria` | **Total bacteria** — all bacteria combined |
+| `qpcr_crispatus` | ***Lactobacillus crispatus*** — a "good" bacteria linked to vaginal health |
+| `qpcr_iners` | ***Lactobacillus iners*** — another common Lactobacillus species |
+
+### 🧪 Luminex data — `03_luminex_results_yogurt.csv`
+
+Luminex measures **immune markers (cytokines)** — proteins your body makes when
+it's inflamed or fighting infection. This data is in **long format** (each row =
+one sample + one cytokine). To use it in a boxplot, you pick **one cytokine at a time**.
+
+The 10 cytokines available:
+
+| Cytokine | What it roughly indicates |
+|---|---|
+| **IL-1a, IL-1b, IL-6, TNFa** | Inflammation signals |
+| **IL-8, IP-10, MIG, MIP-3a** | Chemical signals that attract immune cells |
+| **IL-10** | Anti-inflammatory (calms things down) |
+| **IFN-Y** | Antiviral / immune activation |
+
+### 🔗 Joining the data together
+
+To make boxplots with qPCR/Luminex data and birth control info, we need to join
+three files together using `sample_id` as the link:
+
+```
+sample_ids ───▶ has arm + time_point for each sample_id
+                    │
+                    ▼ joins by sample_id
+qPCR or Luminex ───▶ adds the bacterial/cytokine measurements
+                    │
+participant meta ───▶ adds birth_control (joins by pid)
+```
+
+```{r load_all_data}
+# Load sample IDs (links pid to sample_id, arm, time_point)
+sample_ids <- read_csv(here::here("data/group_a_yogurt/00_sample_ids_yogurt.csv"))
+
+# Load qPCR data (bacterial measurements per sample)
+qpcr <- read_csv(here::here("data/group_a_yogurt/02_qpcr_results_yogurt.csv"))
+
+# Load Luminex data (cytokine measurements per sample)
+luminex <- read_csv(here::here("data/group_a_yogurt/03_luminex_results_yogurt.csv"))
+
+# Join everything together
+# First join qPCR with sample_ids to get arm and time_point
+qpcr_joined <- qpcr |>
+  left_join(sample_ids, by = "sample_id") |>
+  left_join(participants, by = c("pid", "arm"))  # add birth_control
+
+# For Luminex, pick one cytokine and join the same way
+luminex_joined <- luminex |>
+  left_join(sample_ids, by = "sample_id") |>
+  left_join(participants, by = c("pid", "arm"))
+```
+
+```{r qpcr_boxplot}
+# Example 1: Boxplot of total bacteria by birth control, faceted by arm
+# (y-axis shows bacterial DNA levels)
+ggplot(qpcr_joined, aes(x = birth_control, y = qpcr_bacteria)) +
+  geom_boxplot(aes(fill = arm)) +
+  facet_wrap(~ arm) +
+  ggpubr::stat_compare_means(method = "wilcox.test", label = "p.signif") +
+  scale_y_log10() +                           # log scale helps see the spread
+  labs(
+    title = "Total Bacteria by Birth Control and Diet Group",
+    x = "Birth Control",
+    y = "Total Bacteria (log scale)",
+    fill = "Diet Group"
+  ) +
+  theme_minimal()
+```
+
+```{r luminex_boxplot}
+# Example 2: Boxplot of IL-8 (inflammation signal) by birth control, faceted by arm
+# Filter to just one cytokine first
+luminex_joined |>
+  filter(cytokine == "IL-8") |>
+  ggplot(aes(x = birth_control, y = conc)) +
+  geom_boxplot(aes(fill = arm)) +
+  facet_wrap(~ arm) +
+  ggpubr::stat_compare_means(method = "wilcox.test", label = "p.signif") +
+  labs(
+    title = "IL-8 Levels by Birth Control and Diet Group",
+    x = "Birth Control",
+    y = "IL-8 Concentration",
+    fill = "Diet Group"
+  ) +
+  theme_minimal()
+```
+
+### 🎮 Try changing these:
+
+| In the qPCR plot, swap to... | To look at... |
+|---|---|
+| `y = qpcr_crispatus` | L. crispatus (beneficial bacteria) |
+| `y = qpcr_iners` | L. iners (another species) |
+
+| In the Luminex plot, change `filter(cytokine == ...)` to... | To look at... |
+|---|---|
+| `"IL-6"` or `"TNFa"` | Different inflammation signals |
+| `"IL-10"` | Anti-inflammatory signal |
+| `"IP-10"` or `"MIG"` | Immune cell recruitment signals |
+
+---
+
+## Regression Models
+
+### 🤔 What is regression, in plain words?
+
+Think of regression as asking:
+
+> *"If I change **one thing** (like eating yogurt), how much does **another thing** (like bacteria levels) change — **while holding everything else constant**?"*
+
+A boxplot shows you a raw comparison. But regression lets you **control for confounders** like birth control and age. So you can ask: *"Is the yogurt effect real, or is it just because the yogurt group has more Depoprovera users?"*
+
+### 📐 The model formula
+
+```
+outcome ~ arm + birth_control + age + time_point
+```
+
+This says: "Predict the outcome using diet group, while **adjusting for** birth control, age, and time point."
+
+The coefficient for `arm` tells us: *"How much does the yogurt group differ from the unchanged diet group, after accounting for birth control, age, and time?"*
+
+### 🧬 Regression 1: Total Bacteria
+
+Bacterial counts span a huge range (0 to 80 million), so we use `log()` to make them behave better.
+
+```{r qpcr_regression}
+# Linear regression: does diet group predict total bacteria,
+# after controlling for birth control, age, and time point?
+
+qpcr_model <- lm(log(qpcr_bacteria + 1) ~ arm + birth_control + age + time_point,
+                  data = qpcr_joined)
+
+# View the results
+summary(qpcr_model)
+```
+
+```{r qpcr_regression_table}
+# Cleaner table using gtsummary
+qpcr_model |>
+  tbl_regression() |>
+  bold_labels()
+```
+
+### 🧪 Regression 2: IL-8 (Inflammation)
+
+```{r luminex_regression}
+# Filter to just IL-8, then run the same model
+il8_data <- luminex_joined |>
+  filter(cytokine == "IL-8")
+
+il8_model <- lm(log(conc + 1) ~ arm + birth_control + age + time_point,
+                data = il8_data)
+
+summary(il8_model)
+```
+
+```{r luminex_regression_table}
+il8_model |>
+  tbl_regression() |>
+  bold_labels()
+```
+
+### 🧪 Regression 3: Try any other cytokine
+
+Just change the cytokine name in the `filter()` line!
+
+```{r cytokine_of_choice}
+# Try IL-6, TNFa, IP-10, IL-10, or any of the 10 cytokines
+my_cytokine <- "IL-6"
+
+cyt_data <- luminex_joined |>
+  filter(cytokine == my_cytokine)
+
+cyt_model <- lm(log(conc + 1) ~ arm + birth_control + age + time_point,
+                data = cyt_data)
+
+cyt_model |>
+  tbl_regression() |>
+  bold_labels() |>
+  modify_caption(paste("Regression for", my_cytokine))
+```
+
+### 📖 How to read the regression output
+
+```
+Coefficients:
+                       Estimate  Pr(>|t|)    
+(Intercept)            5.79e+00  < 5e-16 ***  ← baseline (unchanged diet, no BC, baseline time)
+armyogurt              6.40e-02    0.755      ← yogurt effect (ns)  
+birth_controlDepo      1.30e+00   < 0.001 *** ← Depoprovera effect (significant!)
+age                   -5.93e-02    0.034 *    ← age effect (older = slightly less bacteria)
+time_pointafter...     5.28e-01    0.004 **   ← time effect (more bacteria after antibiotics)
+```
+
+| Term | What it means |
+|---|---|
+| `(Intercept)` | The predicted value when all other variables are 0 (the baseline) |
+| `armyogurt` | **The yogurt effect** — difference between yogurt & unchanged diet, holding everything else constant. P > 0.05 = not significant |
+| `birth_controlDepo` | Difference between Depoprovera & no hormonal BC. If significant, birth control matters! |
+| `age` | How much bacteria changes for each extra year of age |
+| `time_pointafter_antibiotic` | Difference between after-antibiotic & baseline |
+
+### 💡 Key insight
+
+Notice how regression **controls for birth control**. The boxplots showed raw differences, but regression asks:
+
+> *"If I compare two women of the **same age**, with the **same birth control**, at the **same time point** — does eating yogurt make a difference?"*
+
+This is much more powerful than just looking at boxplots!
+
+### 🧠 Something to think about
+
+Each participant was measured **twice** (baseline + after antibiotics). Regression treats those as independent, but they're really linked. A more advanced approach would be a **mixed model** or looking at **change from baseline**:
+
+```{r change_from_baseline}
+# Calculate change from baseline for each participant
+qpcr_change <- qpcr_joined |>
+  select(pid, arm, time_point, qpcr_bacteria, birth_control, age) |>
+  pivot_wider(names_from = time_point, values_from = qpcr_bacteria) |>
+  mutate(bacteria_change = log(after_antibiotic + 1) - log(baseline + 1))
+
+# Now model the change (each participant appears only once)
+change_model <- lm(bacteria_change ~ arm + birth_control + age, data = qpcr_change)
+
+change_model |>
+  tbl_regression() |>
+  bold_labels() |>
+  modify_caption("Predicting **change** in bacteria from baseline to after antibiotics")
+```
+
+This tells you: *"Does eating yogurt affect how much your bacteria **changes** from before to after antibiotics?"*
+```
